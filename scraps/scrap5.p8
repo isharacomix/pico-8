@@ -18,7 +18,10 @@ menu_screen = 0
 -- 1 main menu
 menu_selection = 0
 
-units = {}
+team_turn = 1
+ai = {false,false,false,false}
+
+team = {{},{},{},{}}
 unit_selected = 0
 
 function mv(dx,dy)
@@ -46,7 +49,7 @@ end
 function has_tile(l, x, y)
     local i = 0
     for t in all(l) do
-      i +=1
+      i += 1
       if t.x==x and t.y==y then
         return i
       end
@@ -55,7 +58,7 @@ function has_tile(l, x, y)
 end
 
 
-function range(x, y, distance, scratch)
+function range(x, y, distance, myteam, scratch)
   local results = {tile(x,y)}
   if not scratch[x] then
     scratch[x] = {}
@@ -65,20 +68,31 @@ function range(x, y, distance, scratch)
     scratch[x][y] = -1
   end
   
+  
   if scratch[x][y] >= distance then
     return {}
   end
   scratch[x][y] = distance
   
+  for i in all({1,2,3,4}) do
+    if i != myteam
+    then
+      u = has_tile(team[i], x, y)
+      if u
+      then
+        return {}
+      end
+    end
+  end
   
   if distance < 1 then
     return results
   end
   
-  local t1 = range(x,y-1,distance-1,scratch)
-  local t2 = range(x-1,y,distance-1,scratch)
-  local t3 = range(x,y+1,distance-1,scratch)
-  local t4 = range(x+1,y,distance-1,scratch)  
+  local t1 = range(x,y-1,distance-1,myteam,scratch)
+  local t2 = range(x-1,y,distance-1,myteam,scratch)
+  local t3 = range(x,y+1,distance-1,myteam,scratch)
+  local t4 = range(x+1,y,distance-1,myteam,scratch)  
   
   for l in all({t1,t2,t3,t4}) do
     for t in all(l) do
@@ -107,9 +121,9 @@ end
 
 function _init()
   cartdata("ishara_12_19_16")
-  add(units, unit(0,1,1))
+  add(team[1], unit(0,1,1))
+  add(team[2], unit(0,8,8))
 end
-
 
 
 function key_nomenu()
@@ -125,18 +139,19 @@ function key_nomenu()
       if has_tile(selected, cur_x, cur_y)
       then
         selected = {}
-        units[unit_selected].x = cur_x
-        units[unit_selected].y = cur_y
+        team[team_turn][unit_selected].x = cur_x
+        team[team_turn][unit_selected].y = cur_y
         unit_selected = false
       end    
     else
-      unit_selected = has_tile(units, cur_x,
+      unit_selected = has_tile(team[team_turn], cur_x,
                              cur_y)
       if unit_selected
       then
         selected = range(cur_x,
                          cur_y,
-                         4, {})
+                         4, team_turn,
+                          {})
       end
     end
   end
@@ -211,13 +226,26 @@ function _draw()
              12)
   end
   
+  -- draw the units
   palt(0, false)
   palt(5, true)
-  for v in all(units) do
+  pal(3,8)
+  for v in all(team[1]) do
     spr(5, v.x*8, v.y*8)
   end
-  
-  palt()
+  pal(3,12)
+  for v in all(team[2]) do
+    spr(5, v.x*8, v.y*8)
+  end
+  pal(3,3)
+  for v in all(team[3]) do
+    spr(5, v.x*8, v.y*8)
+  end
+  pal(3,9)
+  for v in all(team[4]) do
+    spr(5, v.x*8, v.y*8)
+  end
+  pal()
   
   if menu_screen == 0
   then

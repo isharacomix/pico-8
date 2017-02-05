@@ -1,228 +1,90 @@
 pico-8 cartridge // http://www.pico-8.com
 version 8
 __lua__
-€’ƒ€’€’ƒ
--- cursor position
-cur_x = 0
-cur_y = 0
 
--- animation clocks
-clocks = {}
-frames = {}
-clocks[1] = 0
-frames[1] = 0
-selected = {}
-
--- menu stuff
-menu_screen = 0
--- 1 main menu
-menu_selection = 0
-
-
-
-function mv(dx,dy)
-  cur_x += dx
-  cur_y += dy
-  --todo: handle borders
-end
-
-function tile(x, y)
-  local me = {}
-  me.x = x
-  me.y = y
-  return me
-end
-
-
-function has_tile(t, x, y)
-    for t in all(l) do
-      if t.x==x and t.y==y then
-        return true
-      end
+-- make a grid
+function make_grid(w, h)
+  local new = {}
+  for x=1,w do
+    local col = {}
+    for y=1,h do
+      add(col, {})
     end
-    return false
+    add(new, col)
+  end
+  return new
 end
 
-
-function range(x, y, distance, scratch)
-  local results = {tile(x,y)}
-  if not scratch[x] then
-    scratch[x] = {}
-  end
-  
-  if not scratch[x][y] then
-    scratch[x][y] = -1
-  end
-  
-  if scratch[x][y] >= distance then
-    return {}
-  end
-  scratch[x][y] = distance
-  
-  
-  if distance < 1 then
-    return results
-  end
-  
-  local t1 = range(x,y-1,distance-1,scratch)
-  local t2 = range(x-1,y,distance-1,scratch)
-  local t3 = range(x,y+1,distance-1,scratch)
-  local t4 = range(x+1,y,distance-1,scratch)  
-  
-  for l in all({t1,t2,t3,t4}) do
-    for t in all(l) do
-      if not has_tile(results, t.x, t.y) then
-      add(results,t)
-      end
-    end
-  end
-  return results
-end
-
-
-function tick(clock, duration, max_frames)
-  clocks[clock] += 1
-  if clocks[clock] > duration
+-- get the tile in the grid
+-- a tile is a list of ints that
+-- represent all entities present
+function tile_at(g,x,y)
+  if (x < 1 or y < 1 or x > #g or y > #(g[x]))
   then
-    clocks[clock] = 0
-    frames[clock] += 1
-    if frames[clock] >= max_frames
-    then
-      frames[clock] = 0
+    return nil
+  end
+  return g[x][y]
+end
+
+-- return the glyph and colors
+-- needed to draw a tile
+function glyph(tdata)
+  if (tdata==nil) return {" ",0,1}
+  if (#tdata==0) return {" ",0,0}
+
+  return {"@",15,0}
+end
+
+-- add to tile
+function g_add(g, x, y, c)
+  tdata = tile_at(g, x, y)
+  if tdata != nil
+  then
+    add(tdata, c)
+  end
+end
+
+
+function g_rem(g, x, y, c)
+  tdata = tile_at(g, x, y)
+  if tdata != nil
+  then
+    del(tdata, c)
+  end
+end
+
+function g_in(g, x, y, c)
+  tdata = tile_at(g, x, y)
+  if tdata != nil
+  then
+    for v in all(tdata) do
+      if (v==c) return true
     end
   end
+  return false
 end
 
 
 function _init()
-  cartdata("ishara_12_19_16")
+  cartdata("ishara_02_05_17")
+  grid = make_grid(8,8)
+  add(tile_at(grid, 3,3), 2)
+  offx=1
+  offy=1
 end
-
-
-
-function key_nomenu()
-  
-  if btnp(0) then mv(-1,0) end
-  if btnp(1) then mv(1,0) end
-  if btnp(2) then mv(0,-1) end
-  if btnp(3) then mv(0,1) end
-  
-  if btnp(4) then
-    selected = range(cur_x,
-                     cur_y,
-                     4, {})
-  end
-  if btnp(5) then
-    if #selected > 0
-    then
-      selected = {}
-    else
-      menu_screen = 1
-      menu_selection = 0
-    end
-  end
-  
-end
-
-function key_menu1()
-  if btnp(2) and menu_selection > 0
-  then
-    menu_selection -= 1
-  end
-  if btnp(3) and menu_selection < 2
-  then
-    menu_selection += 1
-  end
-  
-  if btnp(5)
-  then
-    menu_screen = 0
-  end
-  
-  if btnp(4)
-  then
-    if menu_selection == 0
-    then
-      menu_screen = 0
-    elseif menu_selection == 1
-    then
-      menu_screen = 0
-    elseif menu_selection == 2
-    then
-       menu_screen = 0
-    end
-  end
-end
-
-
 
 
 function _update()
-  -- animation clocks
-  tick(1,15,2) --cursor clock
-  
-  -- read input
-  if menu_screen == 0
-  then
-    key_nomenu()
-  elseif menu_screen == 1
-  then
-    key_menu1()
-  end
+ 
 
 end
 
 function _draw()
   cls()
-  map(0,0,0,0,16,16)
-  for v in all(selected) do
-    rectfill(v.x*8, v.y*8,
-             (v.x+1)*8-1,
-             (v.y+1)*8-1,
-             12)
-  end
-  
-  if menu_screen == 0
-  then
-    rect(cur_x*8+frames[1],
-         cur_y*8+frames[1],
-         (cur_x+1)*8-1-frames[1],
-         (cur_y+1)*8-1-frames[1],
-         7)
-  elseif menu_screen == 1
-  then
-    draw_menu1_style1(12, 12)
-  end
-end
-
-
-function draw_menu1_style1(x, y)
-  menu1items = {"one", "two",
-                "trhee"}
-
-  for i in all({0,1,2}) do
-    spr(16+i, x, y+(i*8))
-    if i == menu_selection
-    then
-      rect(x, y+(i*8),
-           x+7, y+7+(i*8), 7)
-      prints(menu1items[i+1], x+8, y+(8*i), 7, 0)
-    end
-  end
-end
-
-
-function draw_menu1_style2(x, y)
-  menu1items = {"one", "two",
-                "trhee"}
-
-  for i in all({0,1,2}) do
-    spr(16+i, x+(i*8), y+8)
-    if i == menu_selection
-    then
-      rect(x+(i*8), y+8,
-           x+7+(i*8), y+15, 7)
-      prints(menu1items[i+1], x, y, 7, 0)
+  for x=1,32 do
+    for y=1,16 do
+      gg = glyph(tile_at(grid,x+offx,y+offy))
+      prints(gg[1], (x-1)*4, (y-1)*8, gg[2], gg[3])
     end
   end
 end
@@ -236,14 +98,14 @@ end
 
 -- end of program
 __gfx__
-00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000bb3bbbbbbbbbbbbbbbbbbbbbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700b3b3bbbbbbbbbbbbbbbbb3bbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000bb3bbbbbbbbbbbbbbbbb3b3bbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00077000bbbbbbbbbbbbbbbbbbbbb3bbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00700700bbbbbbbbbbbb3bbbbbbbbbbbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000bbbbbbbbbbb3b3bbbbbbbbbbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00000000bbbbbbbbbbbb3bbbbbbbbbbbbbbbbbbb0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb3355533500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000bb3bbbbbbbbbbbbbbbbbbbbbbbbbbbbb3355533500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700b3b3bbbbbbbbbbbbbbbbb3bbbbbbbbbb5055505500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000bb3bbbbbbbbbbbbbbbbb3b3bbbbbbbbb5033335500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00077000bbbbbbbbbbbbbbbbbbbbb3bbbbbbbbbb5373030500000000000000000000000000000000000000000000000000000000000000000000000000000000
+00700700bbbbbbbbbbbb3bbbbbbbbbbbbbbbbbbb3733030300000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000bbbbbbbbbbb3b3bbbbbbbbbbbbbbbbbb3333333300000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000bbbbbbbbbbbb3bbbbbbbbbbbbbbbbbbb5333333500000000000000000000000000000000000000000000000000000000000000000000000000000000
 88888888888888888888888800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 8888a888899999988ffffff800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 88aaa88888888898888888f800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
